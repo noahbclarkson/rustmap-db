@@ -30,6 +30,7 @@ pub struct HashMapConfig {
 pub struct HashMap<K: Hash + Eq, V> {
     inner: DashMap<K, V>,
     file: Arc<Mutex<File>>,
+    id: Vec<u8>,
 }
 
 impl<K: Hash + Eq, V> HashMap<K, V>
@@ -38,10 +39,11 @@ where
     V: Serialize + for<'de> Deserialize<'de> + Clone + Send + 'static,
 {
     /// Creates a new HashMap with a capacity of 0.
-    pub fn new(file: Arc<Mutex<File>>) -> Result<Self, StructureError> {
+    pub fn new(file: Arc<Mutex<File>>, id: Vec<u8>) -> Result<Self, StructureError> {
         let instance = Self {
             inner: DashMap::new(),
             file,
+            id,
         };
         instance.load_from_file()?;
         Ok(instance)
@@ -50,11 +52,13 @@ where
     /// Creates a new HashMap with a given capacity.
     pub fn with_config(
         file: Arc<Mutex<File>>,
+        id: Vec<u8>,
         config: HashMapConfig,
     ) -> Result<Self, StructureError> {
         let instance = Self {
             inner: DashMap::with_capacity_and_shard_amount(config.capacity, config.shard_amount),
             file,
+            id,
         };
         instance.load_from_file()?;
         Ok(instance)
@@ -69,11 +73,15 @@ where
 
         while let Ok(entry) = bincode::deserialize_from::<_, DBEntry<K, V>>(&mut cursor) {
             match entry {
-                DBEntry::HashMapEntry(key, value) => {
-                    self.inner.insert(key, value);
+                DBEntry::HashMapEntry(id, key, value) => {
+                    if id == self.id {
+                        self.inner.insert(key, value);
+                    }
                 }
-                DBEntry::RemoveHashMapEntry(key) => {
-                    self.inner.remove(&key);
+                DBEntry::RemoveHashMapEntry(id, key) => {
+                    if id == self.id {
+                        self.inner.remove(&key);
+                    }
                 }
                 _ => {}
             }
@@ -84,15 +92,23 @@ where
     /// Inserts a key-value pair into the HashMap
     ///
     /// Note: Using [`insert_batch`] is more efficient for inserting multiple key-value pairs.
+    ///
     /// If you use insert, you can consider dropping the returned JoinHandle to improve performance.
+    /// However, you can't be sure that the operation was successful if you do so.
+    ///
+    /// As a compromise you can try awaiting the JoinHandle later in your code if you don't need the result immediately.
+    ///
+    /// [`insert_batch`]: #method.insert_batch
     ///
     /// Returns a JoinHandle with a Result containing the old value (None if new) if the operation was successful.
     #[inline]
     pub fn insert(&self, key: K, value: V) -> JoinHandle<Result<Option<V>, StructureError>> {
         let old_value = self.inner.insert(key.clone(), value.clone());
         let file = self.file.clone();
+        let id = self.id.clone();
         tokio::spawn(async move {
-            let serialized_entry = bincode::serialize(&DBEntry::HashMapEntry(key, value))?;
+            let serialized_entry =
+                bincode::serialize(&DBEntry::HashMapEntry(id.clone(), key, value))?;
             serialize_to_file(file, serialized_entry)?;
             Ok(old_value)
         })
@@ -113,10 +129,13 @@ where
         }
 
         let file = self.file.clone();
+        let id = self.id.clone();
         tokio::spawn(async move {
             let serialized_entries = entries
                 .into_iter()
-                .map(|(key, value)| bincode::serialize(&DBEntry::HashMapEntry(key, value)))
+                .map(|(key, value)| {
+                    bincode::serialize(&DBEntry::HashMapEntry(id.clone(), key, value))
+                })
                 .collect::<Result<Vec<_>, _>>()
                 .map(|vecs| vecs.into_iter().flatten().collect::<Vec<u8>>())?;
             serialize_to_file(file, serialized_entries)?;
@@ -127,7 +146,7 @@ where
     /// Gets a reference to the value corresponding to the given key.
     ///
     /// Returns None if the key does not exist.
-    #[inline]
+    #[inline(always)]
     pub fn get(&self, key: &K) -> Option<ValueRef<'_, K, V>> {
         self.inner.get(key).map(|inner| ValueRef { inner })
     }
@@ -138,8 +157,10 @@ where
     pub fn remove(&self, key: &K) -> Option<JoinHandle<Result<Option<V>, StructureError>>> {
         if let Some((key, value)) = self.inner.remove(key) {
             let file = self.file.clone();
+            let id = self.id.clone();
             Some(tokio::spawn(async move {
-                let data = bincode::serialize(&DBEntry::<K, V>::RemoveHashMapEntry(key))?;
+                let data =
+                    bincode::serialize(&DBEntry::<K, V>::RemoveHashMapEntry(id.clone(), key))?;
                 serialize_to_file(file, data)?;
                 Ok(Some(value))
             }))
@@ -162,10 +183,13 @@ where
         }
 
         let file = self.file.clone();
+        let id = self.id.clone();
         tokio::spawn(async move {
             let serialized_entries = keys
                 .into_iter()
-                .map(|key| bincode::serialize(&DBEntry::<K, V>::RemoveHashMapEntry(key)))
+                .map(|key| {
+                    bincode::serialize(&DBEntry::<K, V>::RemoveHashMapEntry(id.clone(), key))
+                })
                 .collect::<Result<Vec<_>, _>>()
                 .map(|vecs| vecs.into_iter().flatten().collect::<Vec<u8>>())?;
             serialize_to_file(file, serialized_entries)?;
@@ -180,6 +204,7 @@ where
     }
 
     /// Returns true if the HashMap contains no key-value pairs.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
@@ -199,9 +224,17 @@ where
         let mut cursor = std::io::Cursor::new(buffer);
         let mut entries_to_keep = Vec::new();
         while let Ok(entry) = bincode::deserialize_from::<_, DBEntry<K, V>>(&mut cursor) {
-            match entry {
-                DBEntry::HashMapEntry(_, _) => {}
-                DBEntry::RemoveHashMapEntry(_) => {}
+            match entry.clone() {
+                DBEntry::HashMapEntry(id, _, _) => {
+                    if id != self.id {
+                        entries_to_keep.push(entry);
+                    }
+                }
+                DBEntry::RemoveHashMapEntry(id, _) => {
+                    if id != self.id {
+                        entries_to_keep.push(entry);
+                    }
+                }
                 _ => entries_to_keep.push(entry),
             }
         }

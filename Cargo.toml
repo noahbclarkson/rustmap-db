@@ -14,12 +14,11 @@ getset = "0.1"
 thiserror = "1.0"
 rand = "0.8"
 tempfile = "3.8"
-futures = "0.3"
 derive_builder = "0.12"
 
 [dev-dependencies]
 criterion = "0.5"
-
+futures = "0.3"
 
 [[bench]]
 name = "rustmap_db_bench"

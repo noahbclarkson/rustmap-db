@@ -55,8 +55,9 @@ impl Database {
         V: Serialize + for<'de> Deserialize<'de> + Clone + Send + 'static,
     >(
         &self,
+        id: String,
     ) -> Result<HashMap<K, V>, StructureError> {
-        Ok(HashMap::new(self.file.clone())?)
+        Ok(HashMap::new(self.file.clone(), to_raw_id(id))?)
     }
 
     /// Creates a new HashMap with a given capacity and/or shard-amount.
@@ -65,8 +66,16 @@ impl Database {
         V: Serialize + for<'de> Deserialize<'de> + Clone + Send + 'static,
     >(
         &self,
+        id: String,
         config: HashMapConfig,
     ) -> Result<HashMap<K, V>, StructureError> {
-        Ok(HashMap::with_config(self.file.clone(), config)?)
+        Ok(HashMap::with_config(self.file.clone(), to_raw_id(id), config)?)
     }
+}
+
+pub(crate) fn to_raw_id(id: String) -> Vec<u8> {
+    let mut raw_id = Vec::new();
+    raw_id.extend_from_slice(&id.len().to_be_bytes());
+    raw_id.extend_from_slice(id.as_bytes());
+    raw_id
 }

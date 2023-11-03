@@ -6,10 +6,10 @@ use serde::{
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DBEntry<K, V> {
-    HashMapEntry(K, V),
-    RemoveHashMapEntry(K),
-    HashSetEntry(K),
-    RemoveHashSetEntry(K),  
+    HashMapEntry(Vec<u8>, K, V),
+    RemoveHashMapEntry(Vec<u8>, K),
+    HashSetEntry(Vec<u8>, K),
+    RemoveHashSetEntry(Vec<u8>, K),  
 }
 
 impl<K, V> Serialize for DBEntry<K, V>
@@ -22,28 +22,32 @@ where
         S: Serializer,
     {
         match *self {
-            DBEntry::HashMapEntry(ref key, ref value) => {
+            DBEntry::HashMapEntry(ref id, ref key, ref value) => {
                 let mut tuple = serializer.serialize_tuple(3)?;
                 tuple.serialize_element(&0u8)?; // 0 indicates HashMapEntry
+                tuple.serialize_element(id)?; // id
                 tuple.serialize_element(key)?;
                 tuple.serialize_element(value)?;
                 tuple.end()
             }
-            DBEntry::RemoveHashMapEntry(ref key) => {
+            DBEntry::RemoveHashMapEntry(ref id, ref key) => {
                 let mut tuple = serializer.serialize_tuple(2)?;
                 tuple.serialize_element(&1u8)?; // 1 indicates Remove
+                tuple.serialize_element(id)?; // id
                 tuple.serialize_element(key)?;
                 tuple.end()
             }
-            DBEntry::HashSetEntry(ref key) => {
+            DBEntry::HashSetEntry(ref id, ref key) => {
                 let mut tuple = serializer.serialize_tuple(2)?;
                 tuple.serialize_element(&2u8)?; // 2 indicates HashSetEntry
+                tuple.serialize_element(id)?; // id
                 tuple.serialize_element(key)?;
                 tuple.end()
             }
-            DBEntry::RemoveHashSetEntry(ref key) => {
+            DBEntry::RemoveHashSetEntry(ref id, ref key) => {
                 let mut tuple = serializer.serialize_tuple(2)?;
                 tuple.serialize_element(&3u8)?; // 3 indicates Remove
+                tuple.serialize_element(id)?; // id
                 tuple.serialize_element(key)?;
                 tuple.end()
             }
@@ -83,31 +87,43 @@ where
             .ok_or_else(|| de::Error::invalid_length(0, &self))?;
         match tag {
             0 => {
-                let key = seq
+                let id = seq
                     .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-                let value = seq
+                let key = seq
                     .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(2, &self))?;
-                Ok(DBEntry::HashMapEntry(key, value))
+                let value = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(3, &self))?;
+                Ok(DBEntry::HashMapEntry(id, key, value))
             }
             1 => {
-                let key = seq
+                let id = seq
                     .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-                Ok(DBEntry::RemoveHashMapEntry(key))
+                let key = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                Ok(DBEntry::RemoveHashMapEntry(id, key))
             }
             2 => {
-                let key = seq
+                let id = seq
                     .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-                Ok(DBEntry::HashSetEntry(key))
+                let key = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                Ok(DBEntry::HashSetEntry(id, key))
             }
             3 => {
-                let key = seq
+                let id = seq
                     .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-                Ok(DBEntry::RemoveHashSetEntry(key))
+                let key = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                Ok(DBEntry::RemoveHashSetEntry(id, key))
             }
             _ => Err(de::Error::invalid_value(
                 de::Unexpected::Unsigned(tag as u64),
