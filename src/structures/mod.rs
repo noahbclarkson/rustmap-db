@@ -1,4 +1,5 @@
 pub mod structure_error;
+pub mod value_ref;
 
 use dashmap::DashMap;
 use derive_builder::Builder;
@@ -13,7 +14,7 @@ use tokio::task::JoinHandle;
 
 use crate::db::db_entry::DBEntry;
 
-use self::structure_error::StructureError;
+use self::{structure_error::StructureError, value_ref::ValueRef};
 
 #[derive(Debug, Builder)]
 pub struct HashMapConfig {
@@ -148,7 +149,7 @@ where
     /// Returns None if the key does not exist.
     #[inline(always)]
     pub fn get(&self, key: &K) -> Option<ValueRef<'_, K, V>> {
-        self.inner.get(key).map(|inner| ValueRef { inner })
+        self.inner.get(key).map(|inner| ValueRef::new(inner))
     }
 
     /// Removes a key from the HashMap, returning the value at the key if the key was previously in the HashMap.
@@ -267,40 +268,6 @@ fn serialize_to_file(file: Arc<Mutex<File>>, data: Vec<u8>) -> Result<(), Struct
     file.write_all(data.as_slice())?;
     file.flush()?;
     Ok(())
-}
-
-/// A reference to a value in a HashMap.
-pub struct ValueRef<'a, K, V> {
-    inner: dashmap::mapref::one::Ref<'a, K, V>,
-}
-
-impl<'a, K, V> ValueRef<'a, K, V>
-where
-    K: Eq + Hash,
-{
-    /// Returns a reference to the value.
-    pub fn value(&self) -> &V {
-        self.inner.value()
-    }
-
-    /// Returns a reference to the key.
-    pub fn key(&self) -> &K {
-        self.inner.key()
-    }
-
-    /// Returns a reference to the key-value pair.
-    pub fn pair(&self) -> (&K, &V) {
-        self.inner.pair()
-    }
-
-    /// Returns the key-value pair.
-    pub fn into_owned(self) -> (K, V)
-    where
-        K: Clone,
-        V: Clone,
-    {
-        (self.inner.key().clone(), self.inner.value().clone())
-    }
 }
 
 #[cfg(test)]
