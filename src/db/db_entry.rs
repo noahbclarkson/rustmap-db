@@ -142,7 +142,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        const FIELDS: &'static [&'static str] = &["tag", "key", "value"];
+        const FIELDS: &'static [&'static str] = &["tag", "id", "key", "value"];
         deserializer.deserialize_tuple_struct("DBEntry", FIELDS.len(), DBEntryVisitor::new())
     }
 }
