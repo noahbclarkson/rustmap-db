@@ -23,7 +23,7 @@ where
     {
         match *self {
             DBEntry::HashMapEntry(ref id, ref key, ref value) => {
-                let mut tuple = serializer.serialize_tuple(3)?;
+                let mut tuple = serializer.serialize_tuple(4)?;
                 tuple.serialize_element(&0u8)?; // 0 indicates HashMapEntry
                 tuple.serialize_element(id)?; // id
                 tuple.serialize_element(key)?;
@@ -31,21 +31,21 @@ where
                 tuple.end()
             }
             DBEntry::RemoveHashMapEntry(ref id, ref key) => {
-                let mut tuple = serializer.serialize_tuple(2)?;
+                let mut tuple = serializer.serialize_tuple(3)?;
                 tuple.serialize_element(&1u8)?; // 1 indicates Remove
                 tuple.serialize_element(id)?; // id
                 tuple.serialize_element(key)?;
                 tuple.end()
             }
             DBEntry::HashSetEntry(ref id, ref key) => {
-                let mut tuple = serializer.serialize_tuple(2)?;
+                let mut tuple = serializer.serialize_tuple(3)?;
                 tuple.serialize_element(&2u8)?; // 2 indicates HashSetEntry
                 tuple.serialize_element(id)?; // id
                 tuple.serialize_element(key)?;
                 tuple.end()
             }
             DBEntry::RemoveHashSetEntry(ref id, ref key) => {
-                let mut tuple = serializer.serialize_tuple(2)?;
+                let mut tuple = serializer.serialize_tuple(3)?;
                 tuple.serialize_element(&3u8)?; // 3 indicates Remove
                 tuple.serialize_element(id)?; // id
                 tuple.serialize_element(key)?;
