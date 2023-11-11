@@ -1,3 +1,7 @@
+//! Performance benchmarks for rustmap-db.
+//!
+//! This module provides benchmarks for various operations on the `HashMap` data structure
+//! such as insertion, batch insertion, and loading from file.
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use rustmap_db::{db::DBMaker, structures::HashMap};

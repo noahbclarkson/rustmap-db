@@ -1,3 +1,7 @@
+//! Structures module for rustmap-db.
+//!
+//! This module provides the key-value storage structures with persistence capabilities.
+
 pub mod structure_error;
 mod tests;
 pub mod value_ref;
@@ -17,6 +21,10 @@ use crate::db::db_entry::DBEntry;
 
 use self::{structure_error::StructureError, value_ref::ValueRef};
 
+/// Configuration for creating a `HashMap`.
+///
+/// This struct defines the parameters for creating a `HashMap`, such as
+/// the number of shards and the initial capacity.
 #[derive(Debug, Builder)]
 pub struct HashMapConfig {
     #[builder(default = "1")]
@@ -25,9 +33,11 @@ pub struct HashMapConfig {
     pub capacity: usize,
 }
 
-/// A HashMap that is backed by a file.
+/// A file-backed, thread-safe hashmap structure.
 ///
-/// This HashMap is fully thread-safe and can be shared across threads.
+/// `HashMap` provides a persistent, concurrent key-value store that is backed by a file.
+/// It supports operations like `insert`, `get`, and `remove`, with changes being
+/// written to disk.
 #[derive(Debug)]
 pub struct HashMap<K: Hash + Eq, V> {
     inner: DashMap<K, V>,

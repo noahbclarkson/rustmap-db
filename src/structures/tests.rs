@@ -1,3 +1,8 @@
+//! Test suite for the rustmap-db structures.
+//!
+//! This module contains unit and integration tests that validate the functionality
+//! of the `rustmap-db` data structures, ensuring correctness and reliability.
+
 #[cfg(test)]
 mod hashmap_tests {
 
@@ -15,10 +20,14 @@ mod hashmap_tests {
         structures::{HashMap, HashMapConfigBuilder},
     };
 
+    // Below are the tests for the HashMap structure.
+    // Each test function is documented to describe its purpose and the specific functionality it is verifying.
+
     fn temp_file() -> Arc<Mutex<File>> {
         Arc::new(Mutex::new(tempfile::tempfile().unwrap()))
     }
 
+    /// Tests the creation of a `HashMap` with a specified configuration.
     #[test]
     fn test_with_config() {
         let file = temp_file();
@@ -33,6 +42,7 @@ mod hashmap_tests {
         assert_eq!(map.inner.capacity(), 112);
     }
 
+    /// Tests the batch insertion and retrieval of key-value pairs.
     #[tokio::test]
     async fn test_insert_batch_and_get() {
         let file = temp_file();
@@ -47,6 +57,7 @@ mod hashmap_tests {
         }
     }
 
+    /// Tests the batch removal of keys.
     #[tokio::test]
     async fn test_remove_batch() {
         let file = temp_file();
@@ -63,6 +74,7 @@ mod hashmap_tests {
         }
     }
 
+    /// Tests clearing the `HashMap`.
     #[tokio::test]
     async fn test_clear() {
         let file = temp_file();
@@ -76,6 +88,7 @@ mod hashmap_tests {
         assert_eq!(map.is_empty(), true);
     }
 
+    /// Tests the insertion of an existing key to verify that the value is updated.
     #[tokio::test]
     async fn test_insert_existing_key() {
         let file = temp_file();
@@ -99,6 +112,7 @@ mod hashmap_tests {
         assert_eq!(map.get(&key).unwrap().value(), &value2);
     }
 
+    /// Tests concurrent inserts to ensure thread safety.
     #[tokio::test]
     async fn test_concurrent_inserts() {
         let file = temp_file();
@@ -131,6 +145,7 @@ mod hashmap_tests {
         );
     }
 
+    /// Tests error handling with a non-existent key.
     #[tokio::test]
     async fn test_error_handling_nonexistent_key() {
         let file = temp_file();
@@ -139,12 +154,10 @@ mod hashmap_tests {
         assert!(result.is_none());
     }
 
+    /// Tests serialization and deserialization during the insert operation.
     #[tokio::test]
     async fn test_insert_and_get_serialization() {
-        let map = create::<String, String>(
-            "test_insert_and_get.db",
-            "test_insert_and_get",
-        );
+        let map = create::<String, String>("test_insert_and_get.db", "test_insert_and_get");
         let key = "key".to_string();
         let value = "value".to_string();
         map.insert(key.clone(), value.clone())
@@ -152,21 +165,16 @@ mod hashmap_tests {
             .unwrap()
             .unwrap();
         drop(map);
-        let map = create::<String, String>(
-            "test_insert_and_get.db",
-            "test_insert_and_get",
-        );
+        let map = create::<String, String>("test_insert_and_get.db", "test_insert_and_get");
 
         assert_eq!(map.get(&key).unwrap().value(), &value);
         std::fs::remove_file("test_insert_and_get.db").unwrap();
     }
 
+    /// Tests serialization and deserialization when removing keys.
     #[tokio::test]
     async fn test_insert_remove_serialization() {
-        let map = create::<String, String>(
-            "test_insert_remove.db",
-            "test_insert_remove",
-        );
+        let map = create::<String, String>("test_insert_remove.db", "test_insert_remove");
         let key = "key".to_string();
         let value = "value".to_string();
         map.insert(key.clone(), value.clone())
@@ -175,26 +183,18 @@ mod hashmap_tests {
             .unwrap();
         assert_eq!(map.get(&key).unwrap().value(), &value);
         drop(map);
-        let map = create::<String, String>(
-            "test_insert_remove.db",
-            "test_insert_remove",
-        );
+        let map = create::<String, String>("test_insert_remove.db", "test_insert_remove");
         assert_eq!(map.get(&key).unwrap().value(), &value);
         map.remove(&key).unwrap().await.unwrap().unwrap();
         assert!(map.get(&key).is_none());
         std::fs::remove_file("test_insert_remove.db").unwrap();
     }
 
+    /// Tests that clearing a `HashMap` persists correctly to disk.
     #[tokio::test]
     async fn test_clear_serialization() {
-        let map = create::<String, String>(
-            "test_clear.db",
-            "test_clear",
-        );
-        let map2 = create::<String, String>(
-            "test_clear.db",
-            "test_clear_2",
-        );
+        let map = create::<String, String>("test_clear.db", "test_clear");
+        let map2 = create::<String, String>("test_clear.db", "test_clear_2");
         let key = "key".to_string();
         let value = "value".to_string();
         map.insert(key.clone(), value.clone())
@@ -210,19 +210,14 @@ mod hashmap_tests {
         map.clear().unwrap();
         drop(map);
         drop(map2);
-        let map = create::<String, String>(
-            "test_clear.db",
-            "test_clear",
-        );
-        let map2 = create::<String, String>(
-            "test_clear.db",
-            "test_clear_2",
-        );
+        let map = create::<String, String>("test_clear.db", "test_clear");
+        let map2 = create::<String, String>("test_clear.db", "test_clear_2");
         assert!(map.get(&key).is_none());
         assert_eq!(map2.get(&key).unwrap().value(), &value);
         std::fs::remove_file("test_clear.db").unwrap();
     }
 
+    /// Utility function to create a `HashMap` with a given id.
     fn create<K, V>(filename: &str, id: &str) -> HashMap<K, V>
     where
         K: Hash + Eq + Serialize + for<'de> Deserialize<'de> + Clone + Send + 'static,

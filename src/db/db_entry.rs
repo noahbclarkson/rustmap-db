@@ -1,15 +1,28 @@
+//! Database entry module for rustmap-db.
+//!
+//! This module defines the `DBEntry` enum and its serialization/deserialization implementations,
+//! which represent the different types of entries that can exist in the database file.
+
 use serde::{
     de::{self, SeqAccess, Visitor},
     ser::SerializeTuple,
     Deserialize, Serialize, Serializer, Deserializer,
 };
 
+/// Represents an entry in the database.
+///
+/// `DBEntry` is an enum that can represent different types of entries within the database,
+/// such as a key-value pair in a hashmap, or a key in a hashset, including their removal variants.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DBEntry<K, V> {
+    /// Represents a key-value pair entry in a hashmap.
     HashMapEntry(Vec<u8>, K, V),
+    /// Represents the removal of a key-value pair from a hashmap.
     RemoveHashMapEntry(Vec<u8>, K),
+    /// Represents an entry in a hashset.
     HashSetEntry(Vec<u8>, K),
-    RemoveHashSetEntry(Vec<u8>, K),  
+    /// Represents the removal of an entry from a hashset.
+    RemoveHashSetEntry(Vec<u8>, K),
 }
 
 impl<K, V> Serialize for DBEntry<K, V>
@@ -55,11 +68,16 @@ where
     }
 }
 
+/// A `Visitor` for deserializing a `DBEntry`.
+///
+/// `DBEntryVisitor` provides a custom visitor to deserialize `DBEntry` from a sequence
+/// of bytes following the structure outlined in the `DBEntry` enum.
 struct DBEntryVisitor<K, V> {
     marker: std::marker::PhantomData<fn() -> DBEntry<K, V>>,
 }
 
 impl<K, V> DBEntryVisitor<K, V> {
+    /// Creates a new `DBEntryVisitor`.
     fn new() -> Self {
         DBEntryVisitor {
             marker: std::marker::PhantomData,
