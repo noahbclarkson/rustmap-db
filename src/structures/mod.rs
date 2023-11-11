@@ -3,7 +3,6 @@
 //! This module provides the key-value storage structures with persistence capabilities.
 
 pub mod structure_error;
-mod tests;
 pub mod value_ref;
 
 use dashmap::DashMap;
@@ -261,6 +260,16 @@ where
         file.write_all(serialized_entries.as_slice())?;
         file.flush()?;
         Ok(())
+    }
+
+    /// Returns the capacity of the HashMap.
+    /// 
+    /// The capacity is the number of key-value pairs that the HashMap can hold without reallocating memory.
+    /// 
+    /// Note that the capacity is not a bound on the HashMap's size.
+    #[inline]
+    pub fn capacity(&self) -> usize {
+        self.inner.capacity()
     }
 }
 

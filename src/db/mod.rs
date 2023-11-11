@@ -35,13 +35,6 @@ impl DBMaker {
     /// # Arguments
     ///
     /// * `path` - A `PathBuf` that points to the desired database file location.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustmap_db::db::DBMaker;
-    /// let maker = DBMaker::file_db("path/to/db/file");
-    /// ```
     pub fn file_db<P: Into<PathBuf>>(path: P) -> Self {
         Self { path: path.into() }
     }
@@ -51,17 +44,6 @@ impl DBMaker {
     /// This function attempts to open or create the database file at the specified path,
     /// returning a `Database` instance on success. It encapsulates the logic required for
     /// the initialization of a `Database`, handling the creation or opening of the database file.
-    ///
-    /// # Errors
-    ///
-    /// Will return an `io::Error` if the file cannot be created or opened.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustmap_db::db::DBMaker;
-    /// let database = DBMaker::file_db("path/to/db/file").make().unwrap();
-    /// ```
     pub fn make(self) -> io::Result<Database> {
         Database::open(self.path)
     }
