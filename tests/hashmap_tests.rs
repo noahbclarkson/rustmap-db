@@ -11,7 +11,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rustmap_db::{structures::HashMapConfigBuilder, HashMap, DBMaker};
+use rustmap_db::{HashMapConfigBuilder, HashMap, DBMaker};
 use serde::{Deserialize, Serialize};
 
 // Below are the tests for the HashMap structure.

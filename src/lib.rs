@@ -18,4 +18,9 @@ pub mod structures;
 
 // Publicly re-export key components for easy access by library users.
 pub use db::{DBMaker, Database};
-pub use structures::{HashMap, HashMapConfig, structure_error::StructureError};
+pub use structures::{
+    hashmap::{HashMap, HashMapConfig, HashMapConfigBuilder},
+    hashset::{HashSet, HashSetConfig, HashSetConfigBuilder},
+    structure_error::StructureError,
+    value_ref::{ValueRef, ValueRefPair},
+};

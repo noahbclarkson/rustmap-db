@@ -14,21 +14,18 @@ use serde::{
 /// `DBEntry` is an enum that can represent different types of entries within the database,
 /// such as a key-value pair in a hashmap, or a key in a hashset, including their removal variants.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum DBEntry<K, V> {
+pub enum DBEntry {
     /// Represents a key-value pair entry in a hashmap.
-    HashMapEntry(Vec<u8>, K, V),
+    HashMapEntry(Vec<u8>, Vec<u8>, Vec<u8>),
     /// Represents the removal of a key-value pair from a hashmap.
-    RemoveHashMapEntry(Vec<u8>, K),
+    RemoveHashMapEntry(Vec<u8>, Vec<u8>),
     /// Represents an entry in a hashset.
-    HashSetEntry(Vec<u8>, K),
+    HashSetEntry(Vec<u8>, Vec<u8>),
     /// Represents the removal of an entry from a hashset.
-    RemoveHashSetEntry(Vec<u8>, K),
+    RemoveHashSetEntry(Vec<u8>, Vec<u8>),
 }
 
-impl<K, V> Serialize for DBEntry<K, V>
-where
-    K: Serialize,
-    V: Serialize,
+impl Serialize for DBEntry
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -72,11 +69,11 @@ where
 ///
 /// `DBEntryVisitor` provides a custom visitor to deserialize `DBEntry` from a sequence
 /// of bytes following the structure outlined in the `DBEntry` enum.
-struct DBEntryVisitor<K, V> {
-    marker: std::marker::PhantomData<fn() -> DBEntry<K, V>>,
+struct DBEntryVisitor {
+    marker: std::marker::PhantomData<fn() -> DBEntry>,
 }
 
-impl<K, V> DBEntryVisitor<K, V> {
+impl DBEntryVisitor {
     /// Creates a new `DBEntryVisitor`.
     fn new() -> Self {
         DBEntryVisitor {
@@ -85,12 +82,10 @@ impl<K, V> DBEntryVisitor<K, V> {
     }
 }
 
-impl<'de, K, V> Visitor<'de> for DBEntryVisitor<K, V>
+impl<'de> Visitor<'de> for DBEntryVisitor
 where
-    K: Deserialize<'de>,
-    V: Deserialize<'de>,
 {
-    type Value = DBEntry<K, V>;
+    type Value = DBEntry;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("a DBEntry")
@@ -151,10 +146,7 @@ where
     }
 }
 
-impl<'de, K, V> Deserialize<'de> for DBEntry<K, V>
-where
-    K: Deserialize<'de>,
-    V: Deserialize<'de>,
+impl<'de> Deserialize<'de> for DBEntry
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

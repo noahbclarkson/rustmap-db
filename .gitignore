@@ -15,3 +15,8 @@ Cargo.lock
 
 # Jetbrains IDE-specific files
 .idea
+
+# Files for printing project details
+print_files.py
+project_contents.txt
+project.zip

@@ -4,7 +4,7 @@
 //! such as insertion, batch insertion, and loading from file.
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use rustmap_db::{db::DBMaker, structures::HashMap};
+use rustmap_db::{DBMaker, HashMap};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -20,9 +20,7 @@ const ENTRIES: u64 = 500;
 #[allow(dead_code)]
 fn insert_benchmark(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let db = DBMaker::file_db(PathBuf::from("bench.db"))
-        .make()
-        .unwrap();
+    let db = DBMaker::file_db(PathBuf::from("bench.db")).make().unwrap();
     let id = "insert-bench-map".to_string();
     let map: HashMap<TestKey, TestValue> = db.hash_map(id).unwrap();
 
@@ -45,9 +43,7 @@ fn insert_benchmark(c: &mut Criterion) {
 #[allow(dead_code)]
 fn batch_insert_benchmark(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let db = DBMaker::file_db(PathBuf::from("bench.db"))
-        .make()
-        .unwrap();
+    let db = DBMaker::file_db(PathBuf::from("bench.db")).make().unwrap();
     let id = "batch-insert-bench-map".to_string();
     let map: HashMap<TestKey, TestValue> = db.hash_map(id).unwrap();
 
@@ -69,9 +65,7 @@ fn batch_insert_benchmark(c: &mut Criterion) {
 #[allow(dead_code)]
 fn load_from_file_bench(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let db = DBMaker::file_db(PathBuf::from("bench.db"))
-        .make()
-        .unwrap();
+    let db = DBMaker::file_db(PathBuf::from("bench.db")).make().unwrap();
     let id = "load-from-bench-map".to_string();
     let map: HashMap<TestKey, TestValue> = db.hash_map(id.clone()).unwrap();
 
@@ -97,5 +91,10 @@ fn load_from_file_bench(c: &mut Criterion) {
     std::fs::remove_file("bench.db").unwrap();
 }
 
-criterion_group!(benches, insert_benchmark, batch_insert_benchmark, load_from_file_bench);
+criterion_group!(
+    benches,
+    insert_benchmark,
+    batch_insert_benchmark,
+    load_from_file_bench
+);
 criterion_main!(benches);

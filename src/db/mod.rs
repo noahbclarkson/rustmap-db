@@ -17,7 +17,7 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use crate::{HashMap, HashMapConfig, StructureError};
+use crate::{HashMap, HashMapConfig, StructureError, HashSet, HashSetConfig};
 
 /// A builder for creating a new `Database` instance.
 ///
@@ -147,6 +147,57 @@ impl Database {
             config,
         )?)
     }
+
+    /// Creates a new HashSet with a capacity of 0.
+    /// 
+    /// This method facilitates the creation of a new `HashSet` instance linked to the database,
+    /// with a default capacity of 0. It is a convenience function for quickly initializing
+    /// a hash set without custom configurations.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `id` - A `String` identifier for the hashset, unique within the database.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns `StructureError` if there is an issue in the creation process.
+    pub fn hash_set<
+        K: Serialize + for<'de> Deserialize<'de> + Eq + Hash + Clone + Send + 'static + std::fmt::Debug,
+    >(
+        &self,
+        id: String,
+    ) -> Result<HashSet<K>, StructureError> {
+        Ok(HashSet::new(self.file.clone(), to_raw_id(id))?)
+    }
+
+    /// Creates a new HashSet with a given capacity.
+    /// 
+    /// This method allows for the creation of a `HashSet` with a specific capacity.
+    /// It is intended for situations where fine-tuning of the hashset's properties
+    /// is required for performance or specific use cases.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `id` - A `String` identifier for the hashset, unique within the database.
+    /// * `config` - The configuration for the hashset, including capacity.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns `StructureError` if there is an issue in the creation process.
+    pub fn hash_set_with_config<
+        K: Serialize + for<'de> Deserialize<'de> + Eq + Hash + Clone + Send + 'static+ std::fmt::Debug,
+    >(
+        &self,
+        id: String,
+        config: HashSetConfig,
+    ) -> Result<HashSet<K>, StructureError> {
+        Ok(HashSet::with_config(
+            self.file.clone(),
+            to_raw_id(id),
+            config,
+        )?)
+    }
+    
 }
 
 /// Converts a string identifier to a raw byte representation.
