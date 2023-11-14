@@ -11,7 +11,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rustmap_db::{HashMapConfigBuilder, HashMap, DBMaker};
+use rustmap_db::{DBMaker, HashMap, HashMapConfigBuilder};
 use serde::{Deserialize, Serialize};
 
 // Below are the tests for the HashMap structure.
@@ -209,6 +209,46 @@ async fn test_clear_serialization() {
     assert!(map.get(&key).is_none());
     assert_eq!(map2.get(&key).unwrap().value(), &value);
     std::fs::remove_file("test_clear.db").unwrap();
+}
+
+#[tokio::test]
+async fn test_concurrent_read_write() {
+    let file = temp_file();
+    let map = Arc::new(HashMap::new(file, vec![10]).unwrap());
+    let mut handles = vec![];
+
+    // Spawning write threads
+    for i in 0..10 {
+        let map_clone = map.clone();
+        handles.push(tokio::spawn(async move {
+            map_clone
+                .insert(format!("key{}", i), format!("value{}", i))
+                .await
+                .unwrap()
+                .unwrap();
+        }));
+    }
+
+    // Spawning read threads
+    for i in 0..10 {
+        let map_clone = map.clone();
+        handles.push(tokio::spawn(async move {
+            assert!(map_clone.get(&format!("key{}", i)).is_some());
+        }));
+    }
+
+    // Waiting for all threads to complete
+    for handle in handles {
+        handle.await.unwrap();
+    }
+
+    // Verifying the entries
+    for i in 0..10 {
+        assert_eq!(
+            map.get(&format!("key{}", i)).unwrap().value(),
+            &format!("value{}", i)
+        );
+    }
 }
 
 /// Utility function to create a `HashMap` with a given id.

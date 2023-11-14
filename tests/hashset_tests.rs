@@ -56,7 +56,11 @@ async fn test_remove_batch() {
 async fn test_clear() {
     let file = temp_file();
     let hashset = HashSet::<String>::new(file, vec![7]).unwrap();
-    hashset.insert("clear_key".to_string()).await.unwrap().unwrap();
+    hashset
+        .insert("clear_key".to_string())
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(hashset.is_empty(), false);
     hashset.clear().unwrap();
     assert_eq!(hashset.is_empty(), true);
@@ -118,6 +122,48 @@ async fn test_serialization() {
     assert!(hashset.get(&key).is_none());
 
     std::fs::remove_file(filename).unwrap();
+}
+
+#[tokio::test]
+async fn test_concurrent_insert_remove_hashset() {
+    let file = temp_file();
+    let hashset = Arc::new(HashSet::<String>::new(file, vec![11]).unwrap());
+    let mut handles = vec![];
+
+    // Spawning insert threads
+    for i in 0..10 {
+        let hashset_clone = hashset.clone();
+        handles.push(tokio::spawn(async move {
+            hashset_clone
+                .insert(format!("element{}", i))
+                .await
+                .unwrap()
+                .unwrap();
+        }));
+    }
+
+    // Spawning remove threads
+    for i in 0..10 {
+        let hashset_clone = hashset.clone();
+        handles.push(tokio::spawn(async move {
+            hashset_clone
+                .remove(&format!("element{}", i))
+                .unwrap()
+                .await
+                .unwrap()
+                .unwrap();
+        }));
+    }
+
+    // Waiting for all threads to complete
+    for handle in handles {
+        handle.await.unwrap();
+    }
+
+    // Verifying the final state of the HashSet
+    for i in 0..10 {
+        assert!(hashset.get(&format!("element{}", i)).is_none());
+    }
 }
 
 /// Utility function to create a `HashSet` with a given id.

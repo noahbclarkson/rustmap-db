@@ -6,7 +6,7 @@
 use serde::{
     de::{self, SeqAccess, Visitor},
     ser::SerializeTuple,
-    Deserialize, Serialize, Serializer, Deserializer,
+    Deserialize, Deserializer, Serialize, Serializer,
 };
 
 /// Represents an entry in the database.
@@ -25,8 +25,7 @@ pub enum DBEntry {
     RemoveHashSetEntry(Vec<u8>, Vec<u8>),
 }
 
-impl Serialize for DBEntry
-{
+impl Serialize for DBEntry {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -82,9 +81,7 @@ impl DBEntryVisitor {
     }
 }
 
-impl<'de> Visitor<'de> for DBEntryVisitor
-where
-{
+impl<'de> Visitor<'de> for DBEntryVisitor {
     type Value = DBEntry;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -146,13 +143,82 @@ where
     }
 }
 
-impl<'de> Deserialize<'de> for DBEntry
-{
+impl<'de> Deserialize<'de> for DBEntry {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         const FIELDS: &'static [&'static str] = &["tag", "id", "key", "value"];
         deserializer.deserialize_tuple_struct("DBEntry", FIELDS.len(), DBEntryVisitor::new())
+    }
+}
+
+#[cfg(test)]
+mod db_entry_tests {
+    use super::*;
+
+    // Helper function to serialize a DBEntry
+    fn serialize_entry(entry: &DBEntry) -> Vec<u8> {
+        bincode::serialize(entry).expect("Serialization should succeed")
+    }
+
+    // Helper function to deserialize a DBEntry
+    fn deserialize_entry(data: &[u8]) -> DBEntry {
+        bincode::deserialize(data).expect("Deserialization should succeed")
+    }
+
+    #[test]
+    fn test_serialize_deserialize_hashmap_entry() {
+        let entry = DBEntry::HashMapEntry(vec![1], vec![2], vec![3]);
+        let serialized = serialize_entry(&entry);
+        let deserialized = deserialize_entry(&serialized);
+        assert_eq!(entry, deserialized);
+    }
+
+    #[test]
+    fn test_serialize_deserialize_remove_hashmap_entry() {
+        let entry = DBEntry::RemoveHashMapEntry(vec![1], vec![2]);
+        let serialized = serialize_entry(&entry);
+        let deserialized = deserialize_entry(&serialized);
+        assert_eq!(entry, deserialized);
+    }
+
+    #[test]
+    #[should_panic(expected = "Deserialization should succeed")]
+    fn test_deserialization_failure() {
+        // Create a byte array that does not correspond to any valid DBEntry
+        let data = vec![255, 255, 255];
+        let _entry: DBEntry = bincode::deserialize(&data).expect("Deserialization should succeed");
+    }
+
+    #[test]
+    fn test_incorrect_format_deserialization() {
+        // Create a byte array with an incorrect format
+        let data = vec![10, 20, 30]; // Intentionally incorrect format
+        let result = bincode::deserialize::<DBEntry>(&data);
+        assert!(
+            result.is_err(),
+            "Deserialization should fail due to incorrect format"
+        );
+    }
+
+    #[test]
+    fn test_large_data_serialization_deserialization() {
+        let large_vec = vec![0u8; 10000]; // A large data vector
+        let entry = DBEntry::HashMapEntry(large_vec.clone(), large_vec.clone(), large_vec.clone());
+
+        let serialized =
+            bincode::serialize(&entry).expect("Serialization should succeed with large data");
+        let deserialized: DBEntry = bincode::deserialize(&serialized)
+            .expect("Deserialization should succeed with large data");
+
+        match deserialized {
+            DBEntry::HashMapEntry(id, key, value) => {
+                assert_eq!(id, large_vec);
+                assert_eq!(key, large_vec);
+                assert_eq!(value, large_vec);
+            }
+            _ => panic!("Deserialized to incorrect entry type"),
+        }
     }
 }
